@@ -1,0 +1,178 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-03-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+```
+
+```{r}
+# сохраним датает в переменную
+data <- read_excel("pima.xlsx")
+```
+
+
+Рассчитайте описательные статистики для переменных glucose, pressure, mass
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# посчитаем, есть ли пропуски в этих столбцах для понимания того, как считать количество наблюдений в следующем блоке
+a <- sum(is.na(data$glucose))
+b <- sum(is.na(data$pressure))
+c <- sum(is.na(data$mass))
+
+a + b + c
+
+# пропусков нет, поэтому количество наблюдений одинаковое
+```
+
+```{r}
+# так как данные переменные являются количественными, то будем считать число наблюдений, среднее, стандартное отклонение, 1-й и 3-й квартили, минимум и максимум
+stat_glu <- data %>% 
+  summarise('кол-во наблюдений' = n(), 
+            'среднее' = mean(glucose), 
+            'стандартное отклонение' = sd(glucose), 
+            '1й и 3й квартили' = quantile(glucose, c(0.25, 0.75)), 
+            'минимум' = min(glucose), 
+            'максимум' = max(glucose))
+
+stat_pres <- data %>% 
+  summarise('кол-во наблюдений' = n(), 
+            'среднее' = mean(pressure), 
+            'стандартное отклонение' = sd(pressure), 
+            '1й и 3й квартили' = quantile(pressure, c(0.25, 0.75)), 
+            'минимум' = min(pressure), 
+            'максимум' = max(pressure))
+stat_mas <- data %>% 
+  summarise('кол-во наблюдений' = n(), 
+            'среднее' = mean(mass), 
+            'стандартное отклонение' = sd(mass), 
+            '1й и 3й квартили' = quantile(mass, c(0.25, 0.75)), 
+            'минимум' = min(mass), 
+            'максимум' = max(mass))
+  
+
+stat_result1 <- data.frame(stat_glu)
+stat_result2 <- data.frame(stat_pres)
+stat_result3 <- data.frame(stat_mas)
+first_col <- c('Глюкоза', 'Глюкоза', 'Давление', 'Давление', 'Масса', 'Масса')
+
+stat_result_all <- rbind(stat_result1, stat_result2, stat_result3)
+stat_result_all <- cbind(first_col, stat_result_all)
+
+stat_result_all
+```
+
+Рассчитайте описательную статистику для переменной diabetes
+
+```{r}
+# так как переменная категориальная, то рассчитывать будем абсолютную и относительные частоты
+
+abs_freq <- table(data$diabetes)
+rel_freq <- prop.table(abs_freq)
+
+freq <- data.frame(abs_freq, rel_freq)
+freq$Var1.1 <- NULL
+names(freq) <- c('тип', 'абсолютная частота', 'относительная частота в долях')
+
+freq
+```
+
+Создайте на основе переменной age новую переменную age_group, которая будет отражать следующие возрастные группы: 21–35, 36–49 и 50+.
+
+```{r}
+data_new <- data %>% 
+  mutate(age_group = case_when(
+    age >= 21 & age <= 35 ~ 0,
+    age >= 36 & age <= 49 ~ 1,
+    age >= 50 ~ 2
+  ))
+```
+
+```{r}
+# переведём значения age_group к категориальному типу
+
+data_new$age_group <- as.factor(data_new$age_group)
+```
+
+Посчитайте описательную статистику для новой переменной.
+
+```{r}
+# так как переменная категориальная, то рассчитывать будем абсолютную и относительные частоты
+
+abs_freq_age <- table(data_new$age_group)
+rel_freq_age <- prop.table(abs_freq_age)
+
+freq_age <- data.frame(abs_freq_age, rel_freq_age)
+freq_age$Var1.1 <- NULL
+names(freq_age) <- c('тип', 'абсолютная частота', 'относительная частота в долях')
+
+freq_age
+```
+
+Определите 90% доверительный интервал для переменной pedigree
+
+```{r}
+conf_lvl_90 <- t.test(data$pedigree, conf.level = 0.90)
+conf_lvl_90$conf.int
+```
+
+Постройте график плотности вероятности для переменной glucose и отметьте на нем среднее значение.
+
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+ggplot(data, aes(x = glucose)) +
+  geom_density() + 
+  geom_vline(aes(xintercept = mean(glucose)),  
+             color = "red", linetype = "dashed", size = 1) + 
+  labs(title = "Плотность вероятности для переменной glucose", x = "Glucose", y = "Плотность вероятности")
+```
+
+Для той же переменной постройте гистограмму.
+
+
+```{r}
+ggplot(data, aes(x = glucose)) +
+  geom_histogram(binwidth = 5, fill = "skyblue", color = "black") +
+  geom_vline(aes(xintercept = mean(glucose)),
+             color = "red", linetype = "dashed", size = 1) + 
+  labs(title = "Гистограмма переменной glucose", x = "Glucose", y = "Частота")
+```
+
+Постройте два ящика с усами для значений pos и neg соответственно переменной diabetes.
+
+
+```{r}
+ggplot(data, aes(x = diabetes, y = glucose, fill = diabetes)) +
+  geom_boxplot() +
+  labs(title = "Ящик с усами для переменной glucose\nв зависимости от diabetes",
+       x = "Diabetes", y = "Glucose") +
+  scale_fill_manual(values = c("neg" = "skyblue", "pos" = "salmon"))
+```
+
+Постройте на одном графике две диаграммы рассеяния для наличия или отсутствия диабета. По оси X представьте значения обхвата трицепса, а по оси Y — массу тела. Выполните окрашивание, заливку и группирование по переменной diabetes.
+
+```{r}
+ggplot(data, aes(x = triceps, y = mass, color = diabetes, fill = diabetes, shape = diabetes)) +
+  geom_point(size = 3) +
+  facet_grid(.~diabetes) +
+  labs(title = "Диаграммы рассеяния для наличия или отсутствия диабета",
+       x = "Обхват трицепса", y = "Масса тела") +
+  scale_color_manual(values = c("neg" = "blue", "pos" = "red")) +  
+  scale_fill_manual(values = c("neg" = "lightblue", "pos" = "pink")) +  
+  scale_shape_manual(values = c("neg" = 1, "pos" = 2))
+```
+
